@@ -1,0 +1,415 @@
+{
+  "schema_version": "2.0",
+  "title": "ZIK_ZAK Text & Comments System",
+  "description": "Revolutionary text handling using accounting principles - stores text as hashes + metadata",
+  
+  "primitives": {
+    "hash": "Convert text to deterministic i64 hash for balance storage",
+    "timestamp": "Current timestamp in milliseconds", 
+    "user_id": "Unique identifier for user accounts",
+    "content_id": "UUID for comment/text content"
+  },
+
+  "entities": {
+    "comment": {
+      "description": "User comment with text content stored as hash + metadata",
+      "accounts": {
+        "existence": "comment:{id}:existence = 1 (comment exists)",
+        "content_hash": "comment:{id}:content = hash(text) (content validation)",
+        "author": "comment:{id}:author = hash(user_id) (who wrote it)",
+        "target": "comment:{id}:target:product:{product_id} = 1 (what it's about)",
+        "timestamp": "comment:{id}:timestamp = timestamp() (when created)",
+        "rating": "comment:{id}:rating = 1-5 (user rating)",
+        "upvotes": "comment:{id}:upvotes = count (community approval)",
+        "status": "comment:{id}:status = 1=active, 0=deleted, 2=moderated"
+      }
+    },
+    "user_comment_permissions": {
+      "description": "Who can comment where",
+      "accounts": {
+        "can_comment": "user:{id}:can_comment:product:{id} = 1",
+        "is_banned": "user:{id}:banned:comments = 1",
+        "is_moderator": "user:{id}:moderator:comments = 1"
+      }
+    }
+  },
+
+  "recipes": {
+    "create_comment": {
+      "description": "User creates a comment on a product with full text storage",
+      "inputs": ["user_id", "product_id", "comment_text", "rating"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw User does not exist"
+        },
+        {
+          "type": "balance", 
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw Product does not exist"
+        },
+        {
+          "type": "balance",
+          "account": "user:{user_id}:banned:comments",
+          "condition": "= 0",
+          "on_fail": "throw User is banned from commenting"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:existence", 
+          "amount": 1,
+          "metadata": {
+            "operation": "create_comment",
+            "comment_text": "{comment_text}",
+            "user_id": "{user_id}",
+            "product_id": "{product_id}",
+            "created_at": "timestamp()"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:content",
+          "amount": "hash({comment_text})",
+          "metadata": {
+            "operation": "store_content_hash",
+            "original_text": "{comment_text}",
+            "hash_method": "sha256"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis", 
+          "to": "comment:{comment_id}:author",
+          "amount": "hash({user_id})",
+          "metadata": {
+            "operation": "set_author",
+            "author_id": "{user_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:target:product:{product_id}",
+          "amount": 1,
+          "metadata": {
+            "operation": "link_to_product",
+            "target_type": "product",
+            "target_id": "{product_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:timestamp",
+          "amount": "timestamp()",
+          "metadata": {
+            "operation": "set_timestamp"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:rating",
+          "amount": "{rating}",
+          "metadata": {
+            "operation": "set_rating",
+            "rating_value": "{rating}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:status",
+          "amount": 1,
+          "metadata": {
+            "operation": "set_active_status"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{product_id}:comment_count",
+          "amount": 1,
+          "metadata": {
+            "operation": "increment_comment_count",
+            "new_comment_id": "{comment_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{user_id}:comments_made",
+          "amount": 1,
+          "metadata": {
+            "operation": "track_user_activity",
+            "comment_id": "{comment_id}"
+          }
+        }
+      ],
+      "return": {
+        "comment_id": "{comment_id}",
+        "content_hash": "hash({comment_text})",
+        "status": "created",
+        "message": "🦖 Comment created with revolutionary text storage!"
+      }
+    },
+
+    "get_comment": {
+      "description": "Retrieve a comment with full text reconstruction",
+      "inputs": ["comment_id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:existence",
+          "condition": "> 0", 
+          "on_fail": "throw Comment does not exist",
+          "store_as": "exists"
+        },
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:status",
+          "condition": "> 0",
+          "on_fail": "throw Comment is deleted",
+          "store_as": "status"
+        },
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:content",
+          "store_as": "content_hash"
+        },
+        {
+          "type": "balance", 
+          "account": "comment:{comment_id}:author",
+          "store_as": "author_hash"
+        },
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:timestamp", 
+          "store_as": "timestamp"
+        },
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:rating",
+          "store_as": "rating"
+        },
+        {
+          "type": "balance",
+          "account": "comment:{comment_id}:upvotes",
+          "store_as": "upvotes"
+        },
+        {
+          "type": "get_metadata",
+          "account": "comment:{comment_id}:existence",
+          "field": "comment_text",
+          "store_as": "original_text"
+        },
+        {
+          "type": "get_metadata",
+          "account": "comment:{comment_id}:author", 
+          "field": "author_id",
+          "store_as": "author_id"
+        }
+      ],
+      "return": {
+        "comment_id": "{comment_id}",
+        "text": "{original_text}",
+        "author_id": "{author_id}",
+        "timestamp": "{timestamp}",
+        "rating": "{rating}",
+        "upvotes": "{upvotes}",
+        "content_hash": "{content_hash}",
+        "status": "active"
+      }
+    },
+
+    "reply_to_comment": {
+      "description": "Create a threaded reply to an existing comment",
+      "inputs": ["user_id", "parent_comment_id", "reply_text"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "comment:{parent_comment_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw Parent comment does not exist"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{reply_id}:existence",
+          "amount": 1,
+          "metadata": {
+            "operation": "create_reply",
+            "comment_text": "{reply_text}",
+            "user_id": "{user_id}",
+            "parent_comment_id": "{parent_comment_id}",
+            "created_at": "timestamp()"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{reply_id}:content",
+          "amount": "hash({reply_text})",
+          "metadata": {
+            "original_text": "{reply_text}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{reply_id}:parent:{parent_comment_id}",
+          "amount": 1,
+          "metadata": {
+            "operation": "link_to_parent",
+            "parent_id": "{parent_comment_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{parent_comment_id}:replies",
+          "amount": 1,
+          "metadata": {
+            "operation": "increment_reply_count",
+            "reply_id": "{reply_id}"
+          }
+        }
+      ]
+    },
+
+    "upvote_comment": {
+      "description": "User upvotes a comment",
+      "inputs": ["user_id", "comment_id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:upvoted:{comment_id}",
+          "condition": "= 0",
+          "on_fail": "throw Already upvoted this comment"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{user_id}:upvoted:{comment_id}",
+          "amount": 1,
+          "metadata": {
+            "operation": "record_upvote",
+            "comment_id": "{comment_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis", 
+          "to": "comment:{comment_id}:upvotes",
+          "amount": 1,
+          "metadata": {
+            "operation": "increment_upvotes",
+            "upvoter_id": "{user_id}"
+          }
+        }
+      ]
+    },
+
+    "moderate_comment": {
+      "description": "Moderator actions on comments",
+      "inputs": ["moderator_id", "comment_id", "action", "reason"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{moderator_id}:moderator:comments",
+          "condition": "> 0",
+          "on_fail": "throw Not authorized to moderate"
+        },
+        {
+          "type": "transfer",
+          "from": "comment:{comment_id}:status",
+          "to": "system:void",
+          "amount": "all",
+          "metadata": {
+            "operation": "clear_status"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "comment:{comment_id}:status",
+          "amount": "{action}",
+          "metadata": {
+            "operation": "moderate_comment",
+            "moderator_id": "{moderator_id}",
+            "action": "{action}",
+            "reason": "{reason}",
+            "moderated_at": "timestamp()"
+          }
+        }
+      ]
+    },
+
+    "search_comments": {
+      "description": "Search comments by text content hash",
+      "inputs": ["search_text", "limit"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "search:query:hash({search_text})",
+          "amount": 1,
+          "metadata": {
+            "operation": "search_comments",
+            "search_text": "{search_text}",
+            "search_hash": "hash({search_text})",
+            "timestamp": "timestamp()"
+          }
+        }
+      ],
+      "return": {
+        "search_hash": "hash({search_text})",
+        "message": "🔍 Search by content hash - match against comment content balances"
+      }
+    },
+
+    "get_product_comments": {
+      "description": "Get all comments for a product with pagination",
+      "inputs": ["product_id", "limit", "offset"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw Product does not exist"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:comment_count",
+          "store_as": "total_comments"
+        }
+      ],
+      "return": {
+        "product_id": "{product_id}",
+        "total_comments": "{total_comments}",
+        "message": "🔍 Query all accounts matching pattern: comment:*:target:product:{product_id}"
+      }
+    },
+
+    "bulk_comment_stats": {
+      "description": "Get comprehensive comment statistics",
+      "inputs": ["timeframe"],
+      "operations": [
+        {
+          "type": "get_metadata",
+          "account": "system:stats",
+          "field": "comment_analytics",
+          "store_as": "stats"
+        }
+      ],
+      "return": {
+        "message": "📊 Aggregate all comment:*:timestamp balances for analytics"
+      }
+    }
+  }
+}
