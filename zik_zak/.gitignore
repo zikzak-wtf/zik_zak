@@ -1,0 +1,35 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# TigerBeetle database files
+*.tigerbeetle
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Runtime files
+pid
+*.pid
+*.pid.lock
+
+# Coverage reports
+lcov.info
+*.lcov

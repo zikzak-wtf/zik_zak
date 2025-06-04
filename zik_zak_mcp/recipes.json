@@ -1,0 +1,420 @@
+{
+  "schema_version": "1.0",
+  "title": "🦖 Pure Accounting Recipes - Universal CRUD via Accounting",
+  "description": "Single JSON that maps ALL entity operations to pure accounting calls",
+
+  "primitives": {
+    "balance": "Get account balance: balance(account_id) -> number",
+    "transfer": "Transfer amount: transfer(from_account, to_account, amount, metadata) -> transfer_id"
+  },
+
+  "entities": {
+    "product": {
+      "accounts": {
+        "existence": "product:{id}:existence",
+        "price": "product:{id}:price",
+        "name_hash": "product:{id}:name",
+        "description_hash": "product:{id}:description",
+        "created_at": "product:{id}:created_at"
+      }
+    },
+    "user": {
+      "accounts": {
+        "existence": "user:{id}:existence",
+        "email_hash": "user:{id}:email",
+        "name_hash": "user:{id}:name",
+        "role_hash": "user:{id}:role",
+        "created_at": "user:{id}:created_at"
+      }
+    },
+    "order": {
+      "accounts": {
+        "existence": "order:{id}:existence",
+        "user_id_hash": "order:{id}:user_id",
+        "product_id_hash": "order:{id}:product_id",
+        "quantity": "order:{id}:quantity",
+        "total_amount": "order:{id}:total_amount",
+        "status_hash": "order:{id}:status",
+        "created_at": "order:{id}:created_at"
+      }
+    },
+    "system_accounts": {
+      "genesis": "system:genesis",
+      "deleted": "system:deleted",
+      "operations": "system:operations"
+    }
+  },
+
+  "recipes": {
+    "create_product": {
+      "description": "Create product via genesis transfers",
+      "inputs": ["id", "name", "price", "description"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_product", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:price",
+          "amount": "{price}",
+          "metadata": { "operation": "set_price", "price": "{price}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:name",
+          "amount": "hash({name})",
+          "metadata": { "operation": "set_name", "name": "{name}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:description",
+          "amount": "hash({description})",
+          "metadata": {
+            "operation": "set_description",
+            "description": "{description}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    },
+
+    "read_product": {
+      "description": "Read product via balance checks",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "return null"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "price"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:name",
+          "field": "name",
+          "store_as": "name"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:description",
+          "field": "description",
+          "store_as": "description"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:created_at",
+          "field": "created_at",
+          "store_as": "created_at"
+        }
+      ],
+      "return": {
+        "id": "{id}",
+        "name": "{name}",
+        "price": "{price}",
+        "description": "{description}",
+        "created_at": "{created_at}"
+      }
+    },
+
+    "update_product_price": {
+      "description": "Update product price via transfer",
+      "inputs": ["id", "new_price"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "old_price"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:price",
+          "to": "system:operations",
+          "amount": "{old_price}",
+          "metadata": {
+            "operation": "remove_old_price",
+            "old_price": "{old_price}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:price",
+          "amount": "{new_price}",
+          "metadata": {
+            "operation": "update_price",
+            "new_price": "{new_price}",
+            "updated_at": "now()"
+          }
+        }
+      ]
+    },
+
+    "update_product_name": {
+      "description": "Update product name via transfer",
+      "inputs": ["id", "new_name"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:name",
+          "store_as": "old_name_hash"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:name",
+          "to": "system:operations",
+          "amount": "{old_name_hash}",
+          "metadata": { "operation": "remove_old_name" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:name",
+          "amount": "hash({new_name})",
+          "metadata": {
+            "operation": "update_name",
+            "name": "{new_name}",
+            "updated_at": "now()"
+          }
+        }
+      ]
+    },
+
+    "delete_product": {
+      "description": "Delete product by transferring to deleted system",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:existence",
+          "to": "system:deleted",
+          "amount": 1,
+          "metadata": {
+            "operation": "delete_product",
+            "id": "{id}",
+            "deleted_at": "now()"
+          }
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "price"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:price",
+          "to": "system:deleted",
+          "amount": "{price}",
+          "metadata": { "operation": "delete_price" }
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:name",
+          "store_as": "name_hash"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:name",
+          "to": "system:deleted",
+          "amount": "{name_hash}",
+          "metadata": { "operation": "delete_name" }
+        }
+      ]
+    },
+
+    "create_user": {
+      "description": "Create user via genesis transfers",
+      "inputs": ["id", "email", "name", "role"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_user", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:email",
+          "amount": "hash({email})",
+          "metadata": { "operation": "set_email", "email": "{email}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:name",
+          "amount": "hash({name})",
+          "metadata": { "operation": "set_name", "name": "{name}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:role",
+          "amount": "hash({role})",
+          "metadata": { "operation": "set_role", "role": "{role}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    },
+
+    "read_user": {
+      "description": "Read user via balance checks",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "return null"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:email",
+          "field": "email",
+          "store_as": "email"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:name",
+          "field": "name",
+          "store_as": "name"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:role",
+          "field": "role",
+          "store_as": "role"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:created_at",
+          "field": "created_at",
+          "store_as": "created_at"
+        }
+      ],
+      "return": {
+        "id": "{id}",
+        "email": "{email}",
+        "name": "{name}",
+        "role": "{role}",
+        "created_at": "{created_at}"
+      }
+    },
+
+    "create_order": {
+      "description": "Create order with payment and product reservation",
+      "inputs": ["id", "user_id", "product_id", "quantity", "total_amount"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: User not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_order", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:user_id",
+          "amount": "hash({user_id})",
+          "metadata": { "operation": "set_user", "user_id": "{user_id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:product_id",
+          "amount": "hash({product_id})",
+          "metadata": {
+            "operation": "set_product",
+            "product_id": "{product_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:quantity",
+          "amount": "{quantity}",
+          "metadata": { "operation": "set_quantity", "quantity": "{quantity}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:total_amount",
+          "amount": "{total_amount}",
+          "metadata": {
+            "operation": "set_total",
+            "total_amount": "{total_amount}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:status",
+          "amount": "hash(pending)",
+          "metadata": { "operation": "set_status", "status": "pending" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    }
+  }
+}

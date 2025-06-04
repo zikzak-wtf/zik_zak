@@ -1,0 +1,2 @@
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, HeaderMap, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {storage_create_bucket}
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, HeaderMap, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {storage_create_bucket}: Handler<_, _>

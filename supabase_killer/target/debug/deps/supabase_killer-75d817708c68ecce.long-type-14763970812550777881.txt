@@ -1,0 +1,2 @@
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<(std::string::String, std::string::String)>, HeaderMap, axum::body::Bytes) -> impl std::future::Future<Output = impl IntoResponse> {storage_upload_object}
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<(std::string::String, std::string::String)>, HeaderMap, axum::body::Bytes) -> impl std::future::Future<Output = impl IntoResponse> {storage_upload_object}: Handler<_, _>

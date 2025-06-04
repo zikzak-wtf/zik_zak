@@ -1,0 +1,2 @@
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {zikzak_transfer}
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {zikzak_transfer}: Handler<_, _>

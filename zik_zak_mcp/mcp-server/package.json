@@ -1,0 +1,13 @@
+{
+  "name": "zik-zak-mcp",
+  "version": "1.0.0",
+  "description": "🦖 ZikZak MCP Server: Double-entry accounting in 300 lines",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "crypto": "^1.0.1"
+  }
+}

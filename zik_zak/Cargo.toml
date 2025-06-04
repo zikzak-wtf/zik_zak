@@ -1,0 +1,61 @@
+[package]
+name = "zik_zak"
+version = "0.1.0"
+edition = "2021"
+description = "🦖 The end of backend development forever - Pure accounting revolution"
+license = "MIT"
+repository = "https://github.com/zik-zak/zik-zak"
+homepage = "https://github.com/zik-zak/zik-zak"
+documentation = "https://github.com/zik-zak/zik-zak"
+keywords = ["accounting", "backend", "revolution", "tigerbeetle", "framework"]
+categories = ["web-programming", "database", "development-tools"]
+authors = ["ZIK_ZAK Revolution <revolution@zikzak.dev>"]
+readme = "README.md"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1.0", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+thiserror = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+
+# TigerBeetle official Rust client - Financial grade accounting database
+tigerbeetle = { path = "../tigerbeetle-repo/src/clients/rust" }
+
+# For hash functions - Converting strings to account IDs
+sha2 = "0.10"
+hex = "0.4"
+
+# For configuration
+config = "0.13"
+
+# For advanced async operations
+futures = "0.3"
+futures-channel = "0.3"
+
+# For bitflags (TigerBeetle flags)
+bitflags = "2.6"
+
+# For fast random number generation (TigerBeetle IDs)
+fastrand = "2.0"
+
+[[bin]]
+name = "zik_zak"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

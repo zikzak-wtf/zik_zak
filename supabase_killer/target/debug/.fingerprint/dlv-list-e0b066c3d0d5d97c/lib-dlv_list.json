@@ -1,0 +1,1 @@
+{"rustc":5148484765029645790,"features":"[]","declared_features":"[]","target":14900722282091635777,"profile":8276155916380437441,"path":9327612314200542696,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"debug/.fingerprint/dlv-list-e0b066c3d0d5d97c/dep-lib-dlv_list","checksum":false}}],"rustflags":["-C","link-arg=-Wl,-ld_classic"],"config":2069994364910194474,"compile_kind":0}

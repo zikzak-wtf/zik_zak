@@ -1,0 +1,2 @@
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, Query<HashMap<std::string::String, std::string::String>>, HeaderMap) -> impl std::future::Future<Output = impl IntoResponse> {db_select}
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, Query<HashMap<std::string::String, std::string::String>>, HeaderMap) -> impl std::future::Future<Output = impl IntoResponse> {db_select}: Handler<_, _>

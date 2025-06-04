@@ -1,0 +1,1103 @@
+{
+  "schema_version": "1.0",
+  "title": "🦖 Pure Accounting Recipes - Universal CRUD via Accounting",
+  "description": "Single JSON that maps ALL entity operations to pure accounting calls",
+
+  "primitives": {
+    "balance": "Get account balance: balance(account_id) -> number",
+    "transfer": "Transfer amount: transfer(from_account, to_account, amount, metadata) -> transfer_id"
+  },
+
+  "entities": {
+    "product": {
+      "accounts": {
+        "existence": "product:{id}:existence",
+        "price": "product:{id}:price",
+        "name_hash": "product:{id}:name",
+        "description_hash": "product:{id}:description",
+        "created_at": "product:{id}:created_at"
+      }
+    },
+    "realistic_product": {
+      "accounts": {
+        "existence": "rproduct:{id}:existence",
+        "sku": "rproduct:{id}:sku",
+        "name": "rproduct:{id}:name",
+        "description": "rproduct:{id}:description",
+        "short_description": "rproduct:{id}:short_description",
+        "price": "rproduct:{id}:price",
+        "original_price": "rproduct:{id}:original_price",
+        "cost_price": "rproduct:{id}:cost_price",
+        "currency": "rproduct:{id}:currency",
+        "brand": "rproduct:{id}:brand",
+        "categories": "rproduct:{id}:categories",
+        "tags": "rproduct:{id}:tags",
+        "attributes": "rproduct:{id}:attributes",
+        "dimensions": "rproduct:{id}:dimensions",
+        "weight": "rproduct:{id}:weight",
+        "images": "rproduct:{id}:images",
+        "inventory_quantity": "rproduct:{id}:inventory_quantity",
+        "inventory_status": "rproduct:{id}:inventory_status",
+        "ratings_average": "rproduct:{id}:ratings_average",
+        "ratings_count": "rproduct:{id}:ratings_count",
+        "reviews_count": "rproduct:{id}:reviews_count",
+        "variants_count": "rproduct:{id}:variants_count",
+        "seo": "rproduct:{id}:seo",
+        "supplier": "rproduct:{id}:supplier",
+        "shipping": "rproduct:{id}:shipping",
+        "compliance": "rproduct:{id}:compliance",
+        "analytics": "rproduct:{id}:analytics",
+        "status": "rproduct:{id}:status",
+        "visibility": "rproduct:{id}:visibility",
+        "created_at": "rproduct:{id}:created_at",
+        "updated_at": "rproduct:{id}:updated_at",
+        "published_at": "rproduct:{id}:published_at"
+      }
+    },
+    "user": {
+      "accounts": {
+        "existence": "user:{id}:existence",
+        "email_hash": "user:{id}:email",
+        "name_hash": "user:{id}:name",
+        "role_hash": "user:{id}:role",
+        "created_at": "user:{id}:created_at"
+      }
+    },
+    "order": {
+      "accounts": {
+        "existence": "order:{id}:existence",
+        "user_id_hash": "order:{id}:user_id",
+        "product_id_hash": "order:{id}:product_id",
+        "quantity": "order:{id}:quantity",
+        "total_amount": "order:{id}:total_amount",
+        "status_hash": "order:{id}:status",
+        "created_at": "order:{id}:created_at"
+      }
+    },
+    "system_accounts": {
+      "genesis": "system:genesis",
+      "deleted": "system:deleted",
+      "operations": "system:operations"
+    }
+  },
+
+  "recipes": {
+    "create_product": {
+      "description": "Create product via genesis transfers",
+      "inputs": ["id", "name", "price", "description"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_product", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:price",
+          "amount": "{price}",
+          "metadata": { "operation": "set_price", "price": "{price}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:name",
+          "amount": "hash({name})",
+          "metadata": { "operation": "set_name", "name": "{name}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:description",
+          "amount": "hash({description})",
+          "metadata": {
+            "operation": "set_description",
+            "description": "{description}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    },
+
+    "read_product": {
+      "description": "Read product via balance checks",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "return null"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "price"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:name",
+          "field": "name",
+          "store_as": "name"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:description",
+          "field": "description",
+          "store_as": "description"
+        },
+        {
+          "type": "get_metadata",
+          "account": "product:{id}:created_at",
+          "field": "created_at",
+          "store_as": "created_at"
+        }
+      ],
+      "return": {
+        "id": "{id}",
+        "name": "{name}",
+        "price": "{price}",
+        "description": "{description}",
+        "created_at": "{created_at}"
+      }
+    },
+
+    "update_product_price": {
+      "description": "Update product price via transfer",
+      "inputs": ["id", "new_price"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "old_price"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:price",
+          "to": "system:operations",
+          "amount": "{old_price}",
+          "metadata": {
+            "operation": "remove_old_price",
+            "old_price": "{old_price}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:price",
+          "amount": "{new_price}",
+          "metadata": {
+            "operation": "update_price",
+            "new_price": "{new_price}",
+            "updated_at": "now()"
+          }
+        }
+      ]
+    },
+
+    "update_product_name": {
+      "description": "Update product name via transfer",
+      "inputs": ["id", "new_name"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:name",
+          "store_as": "old_name_hash"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:name",
+          "to": "system:operations",
+          "amount": "{old_name_hash}",
+          "metadata": { "operation": "remove_old_name" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{id}:name",
+          "amount": "hash({new_name})",
+          "metadata": {
+            "operation": "update_name",
+            "name": "{new_name}",
+            "updated_at": "now()"
+          }
+        }
+      ]
+    },
+
+    "delete_product": {
+      "description": "Delete product by transferring to deleted system",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:existence",
+          "to": "system:deleted",
+          "amount": 1,
+          "metadata": {
+            "operation": "delete_product",
+            "id": "{id}",
+            "deleted_at": "now()"
+          }
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:price",
+          "store_as": "price"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:price",
+          "to": "system:deleted",
+          "amount": "{price}",
+          "metadata": { "operation": "delete_price" }
+        },
+        {
+          "type": "balance",
+          "account": "product:{id}:name",
+          "store_as": "name_hash"
+        },
+        {
+          "type": "transfer",
+          "from": "product:{id}:name",
+          "to": "system:deleted",
+          "amount": "{name_hash}",
+          "metadata": { "operation": "delete_name" }
+        }
+      ]
+    },
+
+    "create_user": {
+      "description": "Create user via genesis transfers",
+      "inputs": ["id", "email", "name", "role"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_user", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:email",
+          "amount": "hash({email})",
+          "metadata": { "operation": "set_email", "email": "{email}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:name",
+          "amount": "hash({name})",
+          "metadata": { "operation": "set_name", "name": "{name}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:role",
+          "amount": "hash({role})",
+          "metadata": { "operation": "set_role", "role": "{role}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    },
+
+    "read_user": {
+      "description": "Read user via balance checks",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "return null"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:email",
+          "field": "email",
+          "store_as": "email"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:name",
+          "field": "name",
+          "store_as": "name"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:role",
+          "field": "role",
+          "store_as": "role"
+        },
+        {
+          "type": "get_metadata",
+          "account": "user:{id}:created_at",
+          "field": "created_at",
+          "store_as": "created_at"
+        }
+      ],
+      "return": {
+        "id": "{id}",
+        "email": "{email}",
+        "name": "{name}",
+        "role": "{role}",
+        "created_at": "{created_at}"
+      }
+    },
+
+    "create_order": {
+      "description": "Create order with payment and product reservation",
+      "inputs": ["id", "user_id", "product_id", "quantity", "total_amount"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: User not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw error: Product not found"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_order", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:user_id",
+          "amount": "hash({user_id})",
+          "metadata": { "operation": "set_user", "user_id": "{user_id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:product_id",
+          "amount": "hash({product_id})",
+          "metadata": {
+            "operation": "set_product",
+            "product_id": "{product_id}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:quantity",
+          "amount": "{quantity}",
+          "metadata": { "operation": "set_quantity", "quantity": "{quantity}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:total_amount",
+          "amount": "{total_amount}",
+          "metadata": {
+            "operation": "set_total",
+            "total_amount": "{total_amount}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:status",
+          "amount": "hash(pending)",
+          "metadata": { "operation": "set_status", "status": "pending" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        }
+      ]
+    },
+
+    "create_realistic_product": {
+      "description": "Create comprehensive e-commerce product with full schema",
+      "inputs": [
+        "id",
+        "sku",
+        "name",
+        "description",
+        "short_description",
+        "price",
+        "original_price",
+        "cost_price",
+        "currency",
+        "brand",
+        "categories",
+        "tags",
+        "weight",
+        "inventory_quantity",
+        "status",
+        "visibility"
+      ],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:existence",
+          "amount": 1,
+          "metadata": { "operation": "create_realistic_product", "id": "{id}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:sku",
+          "amount": "hash({sku})",
+          "metadata": { "operation": "set_sku", "sku": "{sku}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:name",
+          "amount": "hash({name})",
+          "metadata": { "operation": "set_name", "name": "{name}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:description",
+          "amount": "hash({description})",
+          "metadata": {
+            "operation": "set_description",
+            "description": "{description}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:short_description",
+          "amount": "hash({short_description})",
+          "metadata": {
+            "operation": "set_short_description",
+            "short_description": "{short_description}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:price",
+          "amount": "{price}",
+          "metadata": { "operation": "set_price", "price": "{price}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:original_price",
+          "amount": "{original_price}",
+          "metadata": {
+            "operation": "set_original_price",
+            "original_price": "{original_price}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:cost_price",
+          "amount": "{cost_price}",
+          "metadata": {
+            "operation": "set_cost_price",
+            "cost_price": "{cost_price}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:currency",
+          "amount": "hash({currency})",
+          "metadata": { "operation": "set_currency", "currency": "{currency}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:brand",
+          "amount": "hash({brand})",
+          "metadata": { "operation": "set_brand", "brand": "{brand}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:categories",
+          "amount": "hash({categories})",
+          "metadata": {
+            "operation": "set_categories",
+            "categories": "{categories}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:tags",
+          "amount": "hash({tags})",
+          "metadata": { "operation": "set_tags", "tags": "{tags}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:weight",
+          "amount": "{weight}",
+          "metadata": { "operation": "set_weight", "weight": "{weight}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:inventory_quantity",
+          "amount": "{inventory_quantity}",
+          "metadata": {
+            "operation": "set_inventory",
+            "quantity": "{inventory_quantity}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:status",
+          "amount": "hash({status})",
+          "metadata": { "operation": "set_status", "status": "{status}" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:visibility",
+          "amount": "hash({visibility})",
+          "metadata": {
+            "operation": "set_visibility",
+            "visibility": "{visibility}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:created_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_created_at", "created_at": "now()" }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "rproduct:{id}:updated_at",
+          "amount": "timestamp()",
+          "metadata": { "operation": "set_updated_at", "updated_at": "now()" }
+        }
+      ]
+    },
+
+    "read_realistic_product": {
+      "description": "Read comprehensive product data via balance checks",
+      "inputs": ["id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:existence",
+          "condition": "> 0",
+          "on_fail": "return null"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:sku",
+          "field": "sku",
+          "store_as": "sku"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:name",
+          "field": "name",
+          "store_as": "name"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:description",
+          "field": "description",
+          "store_as": "description"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:short_description",
+          "field": "short_description",
+          "store_as": "short_description"
+        },
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:price",
+          "store_as": "price"
+        },
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:original_price",
+          "store_as": "original_price"
+        },
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:cost_price",
+          "store_as": "cost_price"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:currency",
+          "field": "currency",
+          "store_as": "currency"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:brand",
+          "field": "brand",
+          "store_as": "brand"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:categories",
+          "field": "categories",
+          "store_as": "categories"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:tags",
+          "field": "tags",
+          "store_as": "tags"
+        },
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:weight",
+          "store_as": "weight"
+        },
+        {
+          "type": "balance",
+          "account": "rproduct:{id}:inventory_quantity",
+          "store_as": "inventory_quantity"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:status",
+          "field": "status",
+          "store_as": "status"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:visibility",
+          "field": "visibility",
+          "store_as": "visibility"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:created_at",
+          "field": "created_at",
+          "store_as": "created_at"
+        },
+        {
+          "type": "get_metadata",
+          "account": "rproduct:{id}:updated_at",
+          "field": "updated_at",
+          "store_as": "updated_at"
+        }
+      ],
+      "return": {
+        "id": "{id}",
+        "sku": "{sku}",
+        "name": "{name}",
+        "description": "{description}",
+        "short_description": "{short_description}",
+        "price": "{price}",
+        "original_price": "{original_price}",
+        "cost_price": "{cost_price}",
+        "currency": "{currency}",
+        "brand": "{brand}",
+        "categories": "{categories}",
+        "tags": "{tags}",
+        "weight": "{weight}",
+        "inventory_quantity": "{inventory_quantity}",
+        "status": "{status}",
+        "visibility": "{visibility}",
+        "created_at": "{created_at}",
+        "updated_at": "{updated_at}"
+      }
+    },
+
+    "add_to_cart": {
+      "description": "🛒 SUPABASE KILLER: Add product to user's shopping cart",
+      "inputs": ["user_id", "product_id", "quantity"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:inventory_quantity",
+          "condition": "> 0",
+          "on_fail": "throw Out of stock"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "cart:{user_id}:{product_id}:quantity",
+          "amount": "{quantity}",
+          "metadata": {
+            "operation": "add_to_cart",
+            "user_id": "{user_id}",
+            "product_id": "{product_id}",
+            "timestamp": "timestamp()"
+          }
+        }
+      ]
+    },
+
+    "remove_from_cart": {
+      "description": "🛒 SUPABASE KILLER: Remove product from user's shopping cart",
+      "inputs": ["user_id", "product_id"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "cart:{user_id}:{product_id}:quantity",
+          "to": "system:deleted",
+          "amount": "balance(cart:{user_id}:{product_id}:quantity)",
+          "metadata": {
+            "operation": "remove_from_cart",
+            "user_id": "{user_id}",
+            "product_id": "{product_id}"
+          }
+        }
+      ]
+    },
+
+    "get_cart": {
+      "description": "🛒 SUPABASE KILLER: Get user's entire shopping cart",
+      "inputs": ["user_id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "cart:{user_id}:total_items",
+          "store_as": "total_items"
+        },
+        {
+          "type": "balance",
+          "account": "cart:{user_id}:total_amount",
+          "store_as": "total_amount"
+        }
+      ],
+      "return": {
+        "user_id": "{user_id}",
+        "total_items": "{total_items}",
+        "total_amount": "{total_amount}",
+        "timestamp": "timestamp()"
+      }
+    },
+
+    "checkout": {
+      "description": "💳 SUPABASE KILLER: Process checkout and create order",
+      "inputs": ["user_id", "payment_method", "shipping_address"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "cart:{user_id}:total_amount",
+          "condition": "> 0",
+          "on_fail": "throw Cart is empty"
+        },
+        {
+          "type": "balance",
+          "account": "cart:{user_id}:total_amount",
+          "store_as": "order_total"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{user_id}:hash(timestamp()):existence",
+          "amount": 1,
+          "store_as": "order_id",
+          "metadata": {
+            "operation": "create_order",
+            "user_id": "{user_id}",
+            "total": "{order_total}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{order_id}:total",
+          "amount": "{order_total}",
+          "metadata": {
+            "operation": "set_order_total",
+            "amount": "{order_total}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "order:{order_id}:status",
+          "amount": 1,
+          "metadata": {
+            "operation": "set_order_status",
+            "status": "pending"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "cart:{user_id}:total_amount",
+          "to": "system:deleted",
+          "amount": "{order_total}",
+          "metadata": {
+            "operation": "clear_cart",
+            "order_id": "{order_id}"
+          }
+        }
+      ],
+      "return": {
+        "order_id": "{order_id}",
+        "user_id": "{user_id}",
+        "total": "{order_total}",
+        "status": "pending",
+        "created_at": "timestamp()"
+      }
+    },
+
+    "update_inventory": {
+      "description": "📦 SUPABASE KILLER: Update product inventory in real-time",
+      "inputs": ["product_id", "quantity_change", "operation_type"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw Product not found"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:inventory_quantity",
+          "store_as": "current_inventory"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "product:{product_id}:inventory_quantity",
+          "amount": "{quantity_change}",
+          "metadata": {
+            "operation": "inventory_update",
+            "type": "{operation_type}",
+            "previous_quantity": "{current_inventory}",
+            "change": "{quantity_change}"
+          }
+        }
+      ]
+    },
+
+    "user_signup": {
+      "description": "🔐 SUPABASE KILLER: Create new user account with auth",
+      "inputs": ["email", "password_hash", "name", "role"],
+      "operations": [
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):existence",
+          "amount": 1,
+          "metadata": {
+            "operation": "create_user",
+            "email": "{email}",
+            "name": "{name}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):email",
+          "amount": "hash({email})",
+          "metadata": {
+            "operation": "set_email",
+            "email": "{email}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):password_hash",
+          "amount": "hash({password_hash})",
+          "metadata": {
+            "operation": "set_password",
+            "hashed": "true"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):name",
+          "amount": "hash({name})",
+          "metadata": {
+            "operation": "set_name",
+            "name": "{name}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):role",
+          "amount": "hash({role})",
+          "metadata": {
+            "operation": "set_role",
+            "role": "{role}"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):created_at",
+          "amount": "timestamp()",
+          "metadata": {
+            "operation": "set_created_at"
+          }
+        }
+      ],
+      "return": {
+        "user_id": "hash({email})",
+        "email": "{email}",
+        "name": "{name}",
+        "role": "{role}",
+        "created_at": "timestamp()"
+      }
+    },
+
+    "user_login": {
+      "description": "🔐 SUPABASE KILLER: Authenticate user login",
+      "inputs": ["email", "password_hash"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:hash({email}):existence",
+          "condition": "> 0",
+          "on_fail": "throw User not found"
+        },
+        {
+          "type": "balance",
+          "account": "user:hash({email}):password_hash",
+          "store_as": "stored_password"
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "session:hash({email}):hash(timestamp()):active",
+          "amount": 1,
+          "store_as": "session_id",
+          "metadata": {
+            "operation": "create_session",
+            "user_id": "hash({email})",
+            "login_time": "timestamp()"
+          }
+        },
+        {
+          "type": "transfer",
+          "from": "system:genesis",
+          "to": "user:hash({email}):last_login",
+          "amount": "timestamp()",
+          "metadata": {
+            "operation": "update_last_login"
+          }
+        }
+      ],
+      "return": {
+        "user_id": "hash({email})",
+        "session_id": "{session_id}",
+        "login_time": "timestamp()"
+      }
+    },
+
+    "real_time_inventory": {
+      "description": "⚡ SUPABASE KILLER: Get real-time inventory updates",
+      "inputs": ["product_id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "product:{product_id}:inventory_quantity",
+          "store_as": "current_stock"
+        },
+        {
+          "type": "balance",
+          "account": "product:{product_id}:reserved_quantity",
+          "store_as": "reserved"
+        }
+      ],
+      "return": {
+        "product_id": "{product_id}",
+        "available_stock": "{current_stock}",
+        "reserved_quantity": "{reserved}",
+        "last_updated": "timestamp()",
+        "status": "real_time"
+      }
+    },
+
+    "analytics_dashboard": {
+      "description": "📊 SUPABASE KILLER: Real-time analytics dashboard",
+      "inputs": ["time_period"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "analytics:total_users",
+          "store_as": "total_users"
+        },
+        {
+          "type": "balance",
+          "account": "analytics:total_orders",
+          "store_as": "total_orders"
+        },
+        {
+          "type": "balance",
+          "account": "analytics:total_revenue",
+          "store_as": "total_revenue"
+        },
+        {
+          "type": "balance",
+          "account": "analytics:active_carts",
+          "store_as": "active_carts"
+        }
+      ],
+      "return": {
+        "total_users": "{total_users}",
+        "total_orders": "{total_orders}",
+        "total_revenue": "{total_revenue}",
+        "active_carts": "{active_carts}",
+        "generated_at": "timestamp()",
+        "period": "{time_period}"
+      }
+    }
+  }
+}

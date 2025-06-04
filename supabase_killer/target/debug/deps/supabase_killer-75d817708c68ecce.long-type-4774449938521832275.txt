@@ -1,0 +1,2 @@
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {auth_recover}
+fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {auth_recover}: Handler<_, _>
