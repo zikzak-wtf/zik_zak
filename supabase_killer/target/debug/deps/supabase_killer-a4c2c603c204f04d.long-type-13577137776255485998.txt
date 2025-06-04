@@ -1,2 +1,0 @@
-fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, HeaderMap) -> impl std::future::Future<Output = impl IntoResponse> {storage_delete_bucket}
-fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, HeaderMap) -> impl std::future::Future<Output = impl IntoResponse> {storage_delete_bucket}: Handler<_, _>

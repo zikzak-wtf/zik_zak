@@ -1,2 +1,0 @@
-fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, HeaderMap, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {db_insert}
-fn(axum::extract::State<Arc<tokio::sync::RwLock<SupabaseKiller>>>, axum::extract::Path<std::string::String>, HeaderMap, axum::Json<serde_json::Value>) -> impl std::future::Future<Output = impl IntoResponse> {db_insert}: Handler<_, _>

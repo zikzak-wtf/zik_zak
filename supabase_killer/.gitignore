@@ -1,13 +1,7 @@
-pure*
-raptorr*
-tigerbeetle*
-marketing*
-brainstorms*
-
 # Rust build artifacts
-**/target/
+/target/
 **/*.rs.bk
-**/Cargo.lock
+Cargo.lock
 
 # IDE files
 .vscode/
