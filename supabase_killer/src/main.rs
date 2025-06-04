@@ -1,505 +1,485 @@
-//! # 🦖 SUPABASE KILLER - ZIK_ZAK Edition
+//! # 🛡️ ZIK_ZAK REVOLUTIONARY SECURITY MODEL 🛡️
 //!
-//! This server completely replaces Supabase with ZIK_ZAK's revolutionary
-//! accounting-based architecture. Every Supabase feature, but 100x faster!
-//!
-//! ## What We're Destroying:
-//! - PostgreSQL's slow CRUD → ZIK_ZAK's lightning transfers
-//! - Complex auth flows → Simple JWT + accounting balances
-//! - Realtime subscriptions → Event-driven accounting
-//! - Storage buckets → Account-based file management
-//! - Edge functions → Recipe-based serverless
+//! COMPLETELY OBLITERATES TRADITIONAL ROW LEVEL SECURITY!
 //!
 //! ## The Revolution:
-//! Drop-in replacement for any Supabase client. Your existing code works,
-//! but now it's BLAZING FAST! 🔥
+//! - Every permission is an account balance
+//! - Every user action is a transfer
+//! - Security = Balance checks (INSTANT!)
+//! - No SQL policies, no complexity
+//! - Infinite flexibility, automatic audit trails
+//!
+//! ## Permission Model:
+//! ```
+//! user:{user_id}:read:{resource_type}     = 1 (can read)
+//! user:{user_id}:write:{resource_type}    = 1 (can write)
+//! user:{user_id}:admin                    = 1 (super admin)
+//! resource:{id}:owner:{user_id}           = 1 (owns this)
+//! tenant:{tenant_id}:member:{user_id}     = 1 (tenant member)
+//! ```
 
 use axum::{
-    extract::{Path, Query, State},
-    http::{HeaderMap, Method, StatusCode},
-    middleware,
-    response::{IntoResponse, Response},
-    routing::{delete, get, patch, post, put},
-    Json, Router,
+    extract::{Path, Query, State, Request},
+    http::{StatusCode, HeaderMap},
+    response::Json,
+    routing::{get, post, delete},
+    Router, middleware::{self, Next},
 };
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::{error, info};
+use tracing::info;
 use uuid::Uuid;
 
-mod auth;
-mod database;
-mod realtime;
-mod storage;
+type SharedState = Arc<Mutex<ZikZakSecurityEngine>>;
 
-use auth::AuthService;
-use database::DatabaseService;
-use realtime::RealtimeService;
-use storage::StorageService;
-
-/// 🦖 The Supabase Killer - ZIK_ZAK powered backend
-#[derive(Clone)]
-pub struct SupabaseKiller {
-    pub auth: AuthService,
-    pub database: DatabaseService,
-    pub realtime: RealtimeService,
-    pub storage: StorageService,
+/// 🦖 The Revolutionary ZIK_ZAK Security Engine
+struct ZikZakSecurityEngine {
+    // Account balances for permissions and data
+    accounts: HashMap<String, i64>,
+    // Transaction log for audit trails
+    transactions: Vec<SecurityTransaction>,
 }
 
-impl SupabaseKiller {
-    pub async fn new() -> anyhow::Result<Self> {
-        info!("🦖 Initializing SUPABASE KILLER with ZIK_ZAK engine...");
+#[derive(Debug, Clone, serde::Serialize)]
+struct SecurityTransaction {
+    id: String,
+    from_account: String,
+    to_account: String,
+    amount: i64,
+    operation: String,
+    timestamp: chrono::DateTime<chrono::Utc>,
+    metadata: HashMap<String, String>,
+}
 
-        let auth = AuthService::new().await?;
-        let database = DatabaseService::new().await?;
-        let realtime = RealtimeService::new().await?;
-        let storage = StorageService::new().await?;
+impl ZikZakSecurityEngine {
+    fn new() -> Self {
+        let mut engine = Self {
+            accounts: HashMap::new(),
+            transactions: Vec::new(),
+        };
 
-        info!("🔥 SUPABASE KILLER is ready to DESTROY traditional backends!");
+        // Initialize system accounts
+        engine.accounts.insert("system:genesis".to_string(), 1_000_000);
+        engine.accounts.insert("system:void".to_string(), 0);
 
-        Ok(Self {
-            auth,
-            database,
-            realtime,
-            storage,
-        })
+        engine
     }
 
-    pub fn create_router(self) -> Router {
-        let state = Arc::new(RwLock::new(self));
+    /// 🔥 Core transfer operation - the heart of ZIK_ZAK security
+    fn transfer(&mut self, from: &str, to: &str, amount: i64, operation: &str, metadata: HashMap<String, String>) -> Result<String, String> {
+        let from_balance = self.accounts.get(from).copied().unwrap_or(0);
 
-        Router::new()
-            // 🔐 Auth endpoints (JWT compatible with Supabase)
-            .route("/auth/v1/signup", post(auth_signup))
-            .route("/auth/v1/token", post(auth_token))
-            .route("/auth/v1/user", get(auth_user))
-            .route("/auth/v1/logout", post(auth_logout))
-            .route("/auth/v1/recover", post(auth_recover))
-            .route("/auth/v1/verify", post(auth_verify))
-            .route("/auth/v1/refresh", post(auth_refresh))
-            
-            // 📊 Database endpoints (PostgREST compatible)
-            .route("/rest/v1/:table", get(db_select))
-            .route("/rest/v1/:table", post(db_insert))
-            .route("/rest/v1/:table", patch(db_update))
-            .route("/rest/v1/:table", delete(db_delete))
-            
-            // 🔄 Realtime endpoints (WebSocket compatible)
-            .route("/realtime/v1/websocket", get(realtime_websocket))
-            .route("/realtime/v1/channels", get(realtime_channels))
-            
-            // 📁 Storage endpoints (S3 compatible)
-            .route("/storage/v1/bucket", get(storage_list_buckets))
-            .route("/storage/v1/bucket", post(storage_create_bucket))
-            .route("/storage/v1/bucket/:bucket", delete(storage_delete_bucket))
-            .route("/storage/v1/object/:bucket", get(storage_list_objects))
-            .route("/storage/v1/object/:bucket/*path", get(storage_get_object))
-            .route("/storage/v1/object/:bucket/*path", post(storage_upload_object))
-            .route("/storage/v1/object/:bucket/*path", delete(storage_delete_object))
-            
-            // 🦖 ZIK_ZAK native endpoints (for power users)
-            .route("/zikzak/v1/transfer", post(zikzak_transfer))
-            .route("/zikzak/v1/balance/:account", get(zikzak_balance))
-            .route("/zikzak/v1/recipe/:name", post(zikzak_recipe))
-            .route("/zikzak/v1/recipes", get(zikzak_list_recipes))
-            .route("/zikzak/v1/annihilation", get(zikzak_annihilation_stats))
-            
-            // 🚀 Health check
-            .route("/health", get(health_check))
-            
-            .with_state(state)
-            .layer(
-                CorsLayer::new()
-                    .allow_origin(Any)
-                    .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
-                    .allow_headers(Any)
-            )
+        if from_balance < amount {
+            return Err(format!("Insufficient balance in {}: {} < {}", from, from_balance, amount));
+        }
+
+        // Execute transfer
+        *self.accounts.entry(from.to_string()).or_insert(0) -= amount;
+        *self.accounts.entry(to.to_string()).or_insert(0) += amount;
+
+        // Log transaction
+        let transaction = SecurityTransaction {
+            id: Uuid::new_v4().to_string(),
+            from_account: from.to_string(),
+            to_account: to.to_string(),
+            amount,
+            operation: operation.to_string(),
+            timestamp: chrono::Utc::now(),
+            metadata,
+        };
+
+        let tx_id = transaction.id.clone();
+        self.transactions.push(transaction);
+
+        Ok(tx_id)
     }
+
+    /// ⚡ Lightning-fast permission check (just a balance lookup!)
+    fn has_permission(&self, permission_account: &str) -> bool {
+        self.accounts.get(permission_account).copied().unwrap_or(0) > 0
+    }
+
+    /// 🎯 Extract user ID from authorization header
+    fn extract_user_id(headers: &HeaderMap) -> Result<String, String> {
+        let auth_header = headers
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            .ok_or("Missing or invalid authorization header")?;
+
+        // In real implementation, decode JWT and extract user ID
+        // For demo, we'll parse a simple format: "user_123"
+        if auth_header.starts_with("user_") {
+            Ok(auth_header.to_string())
+        } else {
+            Err("Invalid token format".to_string())
+        }
+    }
+
+    /// 🏗️ Create a new user with automatic permission setup
+    fn create_user(&mut self, email: &str, role: &str, tenant_id: Option<&str>) -> Result<String, String> {
+        let user_id = format!("user_{}", Uuid::new_v4());
+
+        let mut metadata = HashMap::new();
+        metadata.insert("email".to_string(), email.to_string());
+        metadata.insert("role".to_string(), role.to_string());
+        if let Some(tenant) = tenant_id {
+            metadata.insert("tenant_id".to_string(), tenant.to_string());
+        }
+
+        // Grant basic permissions based on role
+        match role {
+            "admin" => {
+                // Admins get god mode
+                self.transfer("system:genesis", &format!("user:{}:admin", user_id), 1, "grant_admin", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:read:all", user_id), 1, "grant_read_all", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:write:all", user_id), 1, "grant_write_all", metadata.clone())?;
+            }
+            "customer" => {
+                // Customers get basic permissions
+                self.transfer("system:genesis", &format!("user:{}:read:products", user_id), 1, "grant_read_products", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:write:orders", user_id), 1, "grant_write_orders", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:read:orders", user_id), 1, "grant_read_orders", metadata.clone())?;
+            }
+            "manager" => {
+                // Managers get elevated permissions
+                self.transfer("system:genesis", &format!("user:{}:read:all", user_id), 1, "grant_read_all", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:write:products", user_id), 1, "grant_write_products", metadata.clone())?;
+                self.transfer("system:genesis", &format!("user:{}:read:analytics", user_id), 1, "grant_read_analytics", metadata.clone())?;
+            }
+            _ => {
+                return Err("Invalid role".to_string());
+            }
+        }
+
+        // Add to tenant if specified
+        if let Some(tenant) = tenant_id {
+            self.transfer("system:genesis", &format!("tenant:{}:member:{}", tenant, user_id), 1, "add_to_tenant", metadata.clone())?;
+        }
+
+        // Create user existence
+        self.transfer("system:genesis", &format!("user:{}:existence", user_id), 1, "create_user", metadata)?;
+
+        Ok(user_id)
+    }
+
+    /// 🎯 Create a resource with ownership
+    fn create_resource(&mut self, resource_type: &str, data: Value, owner_id: &str, tenant_id: Option<&str>) -> Result<String, String> {
+        let resource_id = Uuid::new_v4().to_string();
+
+        let mut metadata = HashMap::new();
+        metadata.insert("resource_type".to_string(), resource_type.to_string());
+        metadata.insert("owner_id".to_string(), owner_id.to_string());
+        metadata.insert("data".to_string(), data.to_string());
+        if let Some(tenant) = tenant_id {
+            metadata.insert("tenant_id".to_string(), tenant.to_string());
+        }
+
+        // Create resource existence
+        self.transfer("system:genesis", &format!("{}:{}:existence", resource_type, resource_id), 1, "create_resource", metadata.clone())?;
+
+        // Set ownership
+        self.transfer("system:genesis", &format!("{}:{}:owner:{}", resource_type, resource_id, owner_id), 1, "set_owner", metadata.clone())?;
+
+        // Add to tenant if specified
+        if let Some(tenant) = tenant_id {
+            self.transfer("system:genesis", &format!("{}:{}:tenant:{}", resource_type, resource_id, tenant), 1, "set_tenant", metadata)?;
+        }
+
+        Ok(resource_id)
+    }
+
+    /// 🛡️ Check if user can access resource
+    fn can_access_resource(&self, user_id: &str, resource_type: &str, resource_id: &str, action: &str) -> bool {
+        // Admin override
+        if self.has_permission(&format!("user:{}:admin", user_id)) {
+            return true;
+        }
+
+        // Global permission
+        if self.has_permission(&format!("user:{}:{}:all", user_id, action)) {
+            return true;
+        }
+
+        // Resource type permission
+        if self.has_permission(&format!("user:{}:{}:{}", user_id, action, resource_type)) {
+            // Check ownership for write operations
+            if action == "write" || action == "delete" {
+                return self.has_permission(&format!("{}:{}:owner:{}", resource_type, resource_id, user_id));
+            }
+            return true;
+        }
+
+        // Owner can always access their resources
+        if self.has_permission(&format!("{}:{}:owner:{}", resource_type, resource_id, user_id)) {
+            return true;
+        }
+
+        false
+    }
+}
+
+/// 🛡️ Security middleware - the guardian of ZIK_ZAK
+async fn security_middleware(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    request: Request,
+    next: Next,
+) -> Result<axum::response::Response, (StatusCode, Json<Value>)> {
+    let path = request.uri().path();
+
+    // Public endpoints that don't need auth
+    if path == "/health" || path == "/auth/signup" || path == "/auth/login" || path.starts_with("/public/") {
+        return Ok(next.run(request).await);
+    }
+
+    // Extract user ID from token
+    let user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    // Check if user exists
+    let state = state.lock().await;
+    if !state.has_permission(&format!("user:{}:existence", user_id)) {
+        return Err((StatusCode::UNAUTHORIZED, Json(json!({"error": "User not found"}))));
+    }
+
+    // For now, allow all authenticated users
+    // In real implementation, we'd check specific permissions based on the endpoint
+    Ok(next.run(request).await)
 }
 
 // 🔐 AUTH ENDPOINTS
 async fn auth_signup(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
+    State(state): State<SharedState>,
     Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.signup(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth signup failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let email = payload["email"].as_str()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(json!({"error": "Email required"}))))?;
+    let role = payload["role"].as_str().unwrap_or("customer");
+    let tenant_id = payload["tenant_id"].as_str();
+
+    let mut state = state.lock().await;
+
+    // Create user with permissions
+    let user_id = state.create_user(email, role, tenant_id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
+
+    Ok(Json(json!({
+        "user_id": user_id,
+        "access_token": user_id, // Simplified token
+        "email": email,
+        "role": role,
+        "tenant_id": tenant_id,
+        "message": "🦖 User created with ZIK_ZAK security!"
+    })))
 }
 
-async fn auth_token(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
+async fn auth_login(
+    State(state): State<SharedState>,
     Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.token(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth token failed: {}", e);
-            StatusCode::UNAUTHORIZED.into_response()
-        }
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let email = payload["email"].as_str()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(json!({"error": "Email required"}))))?;
+
+    let state = state.lock().await;
+
+    // Find user by email (simplified lookup)
+    let user_id = format!("user_{}", email.replace("@", "_").replace(".", "_"));
+
+    if !state.has_permission(&format!("user:{}:existence", user_id)) {
+        return Err((StatusCode::UNAUTHORIZED, Json(json!({"error": "Invalid credentials"}))));
     }
+
+    Ok(Json(json!({
+        "user_id": user_id,
+        "access_token": user_id,
+        "email": email,
+        "message": "🦖 Logged in with ZIK_ZAK security!"
+    })))
 }
 
-async fn auth_user(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
+// 📊 SECURE RESOURCE ENDPOINTS
+async fn create_product(
+    State(state): State<SharedState>,
     headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.get_user(headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth user failed: {}", e);
-            StatusCode::UNAUTHORIZED.into_response()
-        }
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    let mut state = state.lock().await;
+
+    // Check if user can create products
+    if !state.can_access_resource(&user_id, "products", "", "write") {
+        return Err((StatusCode::FORBIDDEN, Json(json!({"error": "No permission to create products"}))));
     }
+
+    let tenant_id = payload["tenant_id"].as_str();
+    let product_id = state.create_resource("product", payload.clone(), &user_id, tenant_id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
+
+    Ok(Json(json!({
+        "product_id": product_id,
+        "owner": user_id,
+        "tenant_id": tenant_id,
+        "data": payload,
+        "message": "🦖 Product created with ZIK_ZAK security!"
+    })))
 }
 
-async fn auth_logout(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
+async fn get_product(
+    State(state): State<SharedState>,
     headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.logout(headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth logout failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+    Path(product_id): Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    let state = state.lock().await;
+
+    // Check if user can read this product
+    if !state.can_access_resource(&user_id, "product", &product_id, "read") {
+        return Err((StatusCode::FORBIDDEN, Json(json!({"error": "No permission to read this product"}))));
     }
+
+    // Check if product exists
+    if !state.has_permission(&format!("product:{}:existence", product_id)) {
+        return Err((StatusCode::NOT_FOUND, Json(json!({"error": "Product not found"}))));
+    }
+
+    Ok(Json(json!({
+        "product_id": product_id,
+        "message": "🦖 Product accessed with ZIK_ZAK security!",
+        "permissions": {
+            "can_read": state.can_access_resource(&user_id, "product", &product_id, "read"),
+            "can_write": state.can_access_resource(&user_id, "product", &product_id, "write"),
+            "can_delete": state.can_access_resource(&user_id, "product", &product_id, "delete"),
+            "is_owner": state.has_permission(&format!("product:{}:owner:{}", product_id, user_id)),
+            "is_admin": state.has_permission(&format!("user:{}:admin", user_id)),
+        }
+    })))
 }
 
-async fn auth_recover(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
+async fn delete_product(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Path(product_id): Path<String>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    let mut state = state.lock().await;
+
+    // Check if user can delete this product
+    if !state.can_access_resource(&user_id, "product", &product_id, "delete") {
+        return Err((StatusCode::FORBIDDEN, Json(json!({"error": "No permission to delete this product"}))));
+    }
+
+    // Move to void (soft delete)
+    let mut metadata = HashMap::new();
+    metadata.insert("deleted_by".to_string(), user_id.clone());
+
+    state.transfer(&format!("product:{}:existence", product_id), "system:void", 1, "delete_product", metadata)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
+
+    Ok(Json(json!({
+        "product_id": product_id,
+        "deleted_by": user_id,
+        "message": "🦖 Product deleted with ZIK_ZAK security!"
+    })))
+}
+
+// 🔧 ADMIN ENDPOINTS
+async fn grant_permission(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
     Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.recover(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth recover failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let admin_user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    let mut state = state.lock().await;
+
+    // Only admins can grant permissions
+    if !state.has_permission(&format!("user:{}:admin", admin_user_id)) {
+        return Err((StatusCode::FORBIDDEN, Json(json!({"error": "Admin access required"}))));
     }
+
+    let target_user_id = payload["user_id"].as_str()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(json!({"error": "user_id required"}))))?;
+    let permission = payload["permission"].as_str()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(json!({"error": "permission required"}))))?;
+
+    let mut metadata = HashMap::new();
+    metadata.insert("granted_by".to_string(), admin_user_id.clone());
+    metadata.insert("target_user".to_string(), target_user_id.to_string());
+
+    state.transfer("system:genesis", &format!("user:{}:{}", target_user_id, permission), 1, "grant_permission", metadata)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
+
+    Ok(Json(json!({
+        "granted_by": admin_user_id,
+        "target_user": target_user_id,
+        "permission": permission,
+        "message": "🦖 Permission granted with ZIK_ZAK security!"
+    })))
 }
 
-async fn auth_verify(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.verify(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth verify failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn auth_refresh(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.auth.refresh(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Auth refresh failed: {}", e);
-            StatusCode::UNAUTHORIZED.into_response()
-        }
-    }
-}
-
-// 📊 DATABASE ENDPOINTS
-async fn db_select(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(table): Path<String>,
+async fn audit_trail(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
     Query(params): Query<HashMap<String, String>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.database.select(table, params, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Database select failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let user_id = ZikZakSecurityEngine::extract_user_id(&headers)
+        .map_err(|e| (StatusCode::UNAUTHORIZED, Json(json!({"error": e}))))?;
+
+    let state = state.lock().await;
+
+    // Only admins can view audit trails
+    if !state.has_permission(&format!("user:{}:admin", user_id)) {
+        return Err((StatusCode::FORBIDDEN, Json(json!({"error": "Admin access required"}))));
     }
+
+    let limit = params.get("limit")
+        .and_then(|l| l.parse::<usize>().ok())
+        .unwrap_or(50);
+
+    let recent_transactions: Vec<_> = state.transactions
+        .iter()
+        .rev()
+        .take(limit)
+        .collect();
+
+    Ok(Json(json!({
+        "transactions": recent_transactions,
+        "total_count": state.transactions.len(),
+        "message": "🦖 Audit trail retrieved with ZIK_ZAK security!"
+    })))
 }
 
-async fn db_insert(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(table): Path<String>,
-    headers: HeaderMap,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.database.insert(table, payload, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Database insert failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
+async fn security_stats(
+    State(state): State<SharedState>,
+) -> Json<Value> {
+    let state = state.lock().await;
 
-async fn db_update(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(table): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
-    headers: HeaderMap,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.database.update(table, params, payload, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Database update failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
+    let total_accounts = state.accounts.len();
+    let total_transactions = state.transactions.len();
+    let total_permissions = state.accounts.iter()
+        .filter(|(k, v)| k.contains(":") && **v > 0)
+        .count();
 
-async fn db_delete(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(table): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.database.delete(table, params, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Database delete failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-// 🔄 REALTIME ENDPOINTS
-async fn realtime_websocket(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.realtime.websocket().await {
-        Ok(response) => response.into_response(),
-        Err(e) => {
-            error!("Realtime websocket failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn realtime_channels(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.realtime.channels().await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Realtime channels failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-// 📁 STORAGE ENDPOINTS
-async fn storage_list_buckets(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.storage.list_buckets(headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage list buckets failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn storage_create_bucket(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    headers: HeaderMap,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.storage.create_bucket(payload, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage create bucket failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn storage_delete_bucket(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(bucket): Path<String>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.storage.delete_bucket(bucket, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage delete bucket failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn storage_list_objects(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(bucket): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.storage.list_objects(bucket, params, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage list objects failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn storage_get_object(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path((bucket, path)): Path<(String, String)>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.storage.get_object(bucket, path, headers).await {
-        Ok(response) => response.into_response(),
-        Err(e) => {
-            error!("Storage get object failed: {}", e);
-            StatusCode::NOT_FOUND.into_response()
-        }
-    }
-}
-
-async fn storage_upload_object(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path((bucket, path)): Path<(String, String)>,
-    headers: HeaderMap,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.storage.upload_object(bucket, path, body, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage upload object failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn storage_delete_object(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path((bucket, path)): Path<(String, String)>,
-    headers: HeaderMap,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.storage.delete_object(bucket, path, headers).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("Storage delete object failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-// 🦖 ZIK_ZAK NATIVE ENDPOINTS
-async fn zikzak_transfer(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.database.zikzak_transfer(payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("ZikZak transfer failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn zikzak_balance(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(account): Path<String>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.database.zikzak_balance(account).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("ZikZak balance failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn zikzak_recipe(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-    Path(name): Path<String>,
-    Json(payload): Json<Value>,
-) -> impl IntoResponse {
-    let mut service = state.write().await;
-    match service.database.zikzak_recipe(name, payload).await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("ZikZak recipe failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn zikzak_list_recipes(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    match service.database.zikzak_list_recipes().await {
-        Ok(response) => Json(response).into_response(),
-        Err(e) => {
-            error!("ZikZak list recipes failed: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    }
-}
-
-async fn zikzak_annihilation_stats(
-    State(state): State<Arc<RwLock<SupabaseKiller>>>,
-) -> impl IntoResponse {
-    let service = state.read().await;
-    
-    // Return epic annihilation stats
     Json(json!({
-        "status": "🦖 SUPABASE ANNIHILATED",
-        "performance_boost": "100x FASTER",
-        "code_reduction": "99% LESS CODE",
-        "complexity_reduction": "ELIMINATED",
-        "developer_happiness": "MAXIMUM",
-        "elephant_status": "EXTINCT",
-        "tiger_status": "ROARING",
-        "zikzak_power": "OVER 9000",
-        "message": "BACKEND DEVELOPMENT IS DEAD. WELCOME TO THE FUTURE."
-    }))
-}
-
-async fn health_check() -> impl IntoResponse {
-    Json(json!({
-        "status": "🦖 ALIVE AND DESTROYING SUPABASE",
-        "timestamp": chrono::Utc::now(),
-        "message": "ZIK_ZAK SUPABASE KILLER IS OPERATIONAL"
+        "status": "🦖 ZIK_ZAK SECURITY OPERATIONAL",
+        "total_accounts": total_accounts,
+        "total_transactions": total_transactions,
+        "total_permissions": total_permissions,
+        "security_model": "ACCOUNTING-BASED",
+        "performance": "INSTANT PERMISSION CHECKS",
+        "audit_trail": "AUTOMATIC",
+        "flexibility": "INFINITE",
+        "message": "TRADITIONAL ROW LEVEL SECURITY IS DEAD!"
     }))
 }
 
@@ -510,18 +490,44 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter("info,supabase_killer=debug")
         .init();
 
-    info!("🚀 Starting SUPABASE KILLER server...");
+    info!("🚀 Starting ZIK_ZAK REVOLUTIONARY SECURITY server...");
 
-    // Create the killer
-    let killer = SupabaseKiller::new().await?;
-    let app = killer.create_router();
+    let state = Arc::new(Mutex::new(ZikZakSecurityEngine::new()));
 
-    // Bind to the same port as Supabase (54321) for maximum destruction
+    let app = Router::new()
+        // 🔐 Auth endpoints (no middleware)
+        .route("/auth/signup", post(auth_signup))
+        .route("/auth/login", post(auth_login))
+
+        // 📊 Secured resource endpoints
+        .route("/products", post(create_product))
+        .route("/products/:id", get(get_product))
+        .route("/products/:id", delete(delete_product))
+
+        // 🔧 Admin endpoints
+        .route("/admin/grant-permission", post(grant_permission))
+        .route("/admin/audit-trail", get(audit_trail))
+
+        // 🚀 Public endpoints
+        .route("/security/stats", get(security_stats))
+        .route("/health", get(|| async { Json(json!({"status": "🦖 ZIK_ZAK SECURITY ALIVE"})) }))
+
+        .layer(middleware::from_fn_with_state(state.clone(), security_middleware))
+        .with_state(state)
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        );
+
+    // Bind to security port
     let listener = tokio::net::TcpListener::bind("0.0.0.0:54321").await?;
-    
-    info!("🦖 SUPABASE KILLER listening on port 54321");
-    info!("🔥 Ready to annihilate traditional backends!");
-    info!("🎯 Point your Supabase clients here and watch them FLY!");
+
+    info!("🛡️  ZIK_ZAK REVOLUTIONARY SECURITY listening on port 54321");
+    info!("🔥 TRADITIONAL ROW LEVEL SECURITY IS DEAD!");
+    info!("⚡ PERMISSION CHECKS ARE NOW INSTANT!");
+    info!("🎯 INFINITE FLEXIBILITY ACHIEVED!");
 
     axum::serve(listener, app).await?;
 
