@@ -1,8 +1,9 @@
 pure*
 raptorr*
-tigerbeetle*
-marketing*
-brainstorms*
+tigerbeetle/
+marketing/
+brainstorms/
+conversations/
 
 # Rust build artifacts
 **/target/
@@ -29,3 +30,4 @@ Thumbs.db
 # Test files
 test_data.json
 annihilation_report.md
+tigerbeetle-repo/

@@ -46,9 +46,26 @@ bitflags = "2.6"
 # For fast random number generation (TigerBeetle IDs)
 fastrand = "2.0"
 
+# SLED - Embedded database for varchar fields
+sled = "0.34"
+
+# For xxHash - High-performance hashing for account keys
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+
+# For testing with temporary directories
+tempfile = "3.0"
+
 [[bin]]
 name = "zik_zak"
 path = "src/main.rs"
+
+[[bin]]
+name = "sled_demo"
+path = "src/bin/sled_demo.rs"
+
+[[bin]]
+name = "quickstart"
+path = "src/bin/quickstart.rs"
 
 [profile.release]
 lto = true

@@ -66,13 +66,20 @@
 //!
 //! Welcome to the revolution. 🔥
 
-pub mod accounting;
-pub mod recipes;
+pub mod genesis;
+pub mod sled;
+pub mod sparks;
 pub mod tigerbeetle_client;
+pub mod zik_zak;
 
-pub use accounting::{Transfer, ZikZakEngine};
-pub use recipes::{Recipe, RecipeEngine};
+pub use genesis::Genesis;
+pub use sled::{SledVarCharStore, ZikZakSledEngine};
+pub use sparks::{Spark, SparkEngine, Zak, Zik, ZikZak};
 pub use tigerbeetle_client::TigerBeetleClient;
+pub use zik_zak::{Transfer, ZikZakEngine};
+
+// Re-export the divine macros (they're already at crate root due to #[macro_export])
+// pub use sparks::{zak, zik}; // Not needed - macros are exported at crate root
 
 /// Result type used throughout ZIK_ZAK
 pub type Result<T> = anyhow::Result<T>;
@@ -90,9 +97,11 @@ The best API is no API.
 The best schema is no schema.
 
 Everything is accounting.
+Everything is a spark.
+GENESIS creates all.
 
 Backend development is dead.
-We killed it.
+We killed it with divine sparks.
 You're welcome.
 "#;
 

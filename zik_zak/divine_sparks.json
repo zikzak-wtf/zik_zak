@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0",
+  "title": "ZIK_ZAK Divine Sparks",
+  "description": "JSON definitions for divine sparks that create reality through accounting",
+  "primitives": {
+    "existence": "Balance > 0 means entity exists",
+    "deletion": "Transfer to system:deleted removes existence",
+    "text_storage": "Sled storage with TigerBeetle reference"
+  },
+  "entities": {
+    "user": ["id", "username", "email", "balance"],
+    "product": ["id", "name", "price", "description"],
+    "order": ["id", "user_id", "status", "total"]
+  },
+  "sparks": {
+    "create_user": {
+      "description": "Divine spark that births users into existence",
+      "inputs": ["user_id", "username", "email"],
+      "operations": [
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "user:{user_id}:existence",
+          "amount": 1
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "user:{user_id}:username",
+          "amount": "{username}",
+          "sled": true
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis", 
+          "zak": "user:{user_id}:email",
+          "amount": "{email}",
+          "sled": true
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "user:{user_id}:balance",
+          "amount": 0
+        }
+      ],
+      "return": {
+        "user_id": "{user_id}",
+        "status": "created"
+      }
+    },
+    "create_product": {
+      "description": "Divine spark that manifests products",
+      "inputs": ["product_id", "name", "price", "description"],
+      "operations": [
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "product:{product_id}:existence", 
+          "amount": 1
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "product:{product_id}:name",
+          "amount": "{name}",
+          "sled": true
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "product:{product_id}:price",
+          "amount": "{price}"
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "product:{product_id}:description", 
+          "amount": "{description}",
+          "sled": true
+        }
+      ],
+      "return": {
+        "product_id": "{product_id}",
+        "status": "created"
+      }
+    },
+    "create_order": {
+      "description": "Divine spark that creates orders and transfers value",
+      "inputs": ["user_id", "product_id", "order_id", "quantity", "price"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw"
+        },
+        {
+          "type": "balance", 
+          "account": "product:{product_id}:existence",
+          "condition": "> 0",
+          "on_fail": "throw"
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "user:{user_id}:order:{order_id}",
+          "amount": 1
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "order:{order_id}:existence",
+          "amount": 1
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis", 
+          "zak": "order:{order_id}:user_id",
+          "amount": "{user_id}"
+        },
+        {
+          "type": "transfer",
+          "zik": "system:genesis",
+          "zak": "order:{order_id}:product_id", 
+          "amount": "{product_id}"
+        },
+        {
+          "type": "transfer",
+          "zik": "user:{user_id}:balance",
+          "zak": "order:{order_id}:payment",
+          "amount": "{price}"
+        }
+      ],
+      "return": {
+        "order_id": "{order_id}",
+        "user_id": "{user_id}",
+        "status": "created"
+      }
+    },
+    "get_user": {
+      "description": "Divine query to retrieve user information",
+      "inputs": ["user_id"],
+      "operations": [
+        {
+          "type": "balance",
+          "account": "user:{user_id}:existence"
+        },
+        {
+          "type": "balance",
+          "account": "user:{user_id}:username",
+          "sled": true
+        },
+        {
+          "type": "balance",
+          "account": "user:{user_id}:email", 
+          "sled": true
+        },
+        {
+          "type": "balance",
+          "account": "user:{user_id}:balance"
+        }
+      ],
+      "return": {
+        "user_id": "{user_id}",
+        "username": "{op_1}",
+        "email": "{op_2}",
+        "balance": "{op_3}"
+      }
+    },
+    "get_user_orders": {
+      "description": "Divine query to find all orders for a user",
+      "inputs": ["user_id"],
+      "operations": [
+        {
+          "type": "get_metadata",
+          "account": "system:genesis",
+          "field": "transfers_to_pattern",
+          "metadata": {
+            "pattern": "user:{user_id}:order:*"
+          }
+        }
+      ],
+      "return": {
+        "user_id": "{user_id}",
+        "orders": "{op_0}"
+      }
+    }
+  }
+}

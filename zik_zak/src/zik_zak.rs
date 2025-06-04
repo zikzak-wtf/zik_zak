@@ -148,7 +148,7 @@ impl ZikZakEngine {
         // Execute transfer in TigerBeetle
         match self
             .tigerbeetle
-            .create_transfer(from_account, to_account, amount as u128)
+            .create_transfer(from_account, to_account, amount as u128, None)
             .await
         {
             Ok(_) => {
@@ -172,6 +172,63 @@ impl ZikZakEngine {
             }
             Err(e) => {
                 error!("❌ Transfer failed: {}", e);
+                Err(e)
+            }
+        }
+    }
+
+    /// Execute transfer with user_data for Sled reference
+    pub async fn transfer_with_user_data(
+        &mut self,
+        from_account: &str,
+        to_account: &str,
+        amount: i64,
+        user_data_128: u128,
+        metadata: HashMap<String, String>,
+    ) -> Result<String> {
+        if amount <= 0 {
+            return Err(anyhow!("Transfer amount must be positive"));
+        }
+
+        let transfer_id = Uuid::new_v4().to_string();
+
+        info!(
+            "💸 Creating transfer with user_data: {} -> {} (amount: {}, user_data_128: {}, id: {})",
+            from_account, to_account, amount, user_data_128, transfer_id
+        );
+
+        // For now, use the existing transfer method until TigerBeetle client is updated
+        // TODO: Update TigerBeetle client to accept user_data_128 parameter
+        match self
+            .tigerbeetle
+            .create_transfer(from_account, to_account, amount as u128, None)
+            .await
+        {
+            Ok(_) => {
+                // Store transfer record with user_data info in metadata
+                let mut enhanced_metadata = metadata;
+                enhanced_metadata.insert("user_data_128".to_string(), user_data_128.to_string());
+                enhanced_metadata.insert("sled_reference".to_string(), "true".to_string());
+
+                let transfer = Transfer {
+                    id: transfer_id.clone(),
+                    from_account: from_account.to_string(),
+                    to_account: to_account.to_string(),
+                    amount,
+                    metadata: enhanced_metadata,
+                    timestamp: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                };
+
+                self.transfers.push(transfer);
+
+                info!("✅ Transfer with user_data completed: {}", transfer_id);
+                Ok(transfer_id)
+            }
+            Err(e) => {
+                error!("❌ Transfer with user_data failed: {}", e);
                 Err(e)
             }
         }
