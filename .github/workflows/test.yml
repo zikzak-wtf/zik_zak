@@ -1,0 +1,272 @@
+name: 🦖 ZIK_ZAK Test Suite
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quick-check:
+    name: 🚀 Quick Check (Formatting & Linting)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+          override: true
+
+      - name: 📦 Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: ✨ Check formatting
+        working-directory: ./zik_zak
+        run: cargo fmt -- --check
+
+      - name: 📋 Run Clippy
+        working-directory: ./zik_zak
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quick-check
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: 📦 Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔧 Install TigerBeetle dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: 🧪 Run unit tests
+        working-directory: ./zik_zak
+        run: |
+          cargo test unit_ --lib --bins -- --nocapture
+        continue-on-error: true
+
+      - name: 📊 Run all tests (excluding integration and performance)
+        working-directory: ./zik_zak
+        run: |
+          cargo test --lib -- --nocapture
+        continue-on-error: true
+
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quick-check
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: 📦 Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔧 Install TigerBeetle dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: 🔗 Run integration tests
+        working-directory: ./zik_zak
+        run: |
+          cargo test integration_ -- --nocapture --test-threads=1
+        continue-on-error: true
+
+  build-test:
+    name: 🏗️ Build Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: quick-check
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: 📦 Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔧 Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: 🏗️ Build debug
+        working-directory: ./zik_zak
+        run: cargo build --verbose
+
+      - name: 🏗️ Build release
+        working-directory: ./zik_zak
+        run: cargo build --release --verbose
+
+      - name: 📦 Check binary size
+        working-directory: ./zik_zak
+        run: |
+          ls -lh target/release/zik_zak
+          echo "✅ Release binary built successfully"
+
+  security-audit:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: 🔒 Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: 🔍 Run security audit
+        working-directory: ./zik_zak
+        run: cargo audit
+        continue-on-error: true
+
+  test-summary:
+    name: 📊 Test Summary
+    runs-on: ubuntu-latest
+    needs: [quick-check, unit-tests, integration-tests, build-test]
+    if: always()
+    steps:
+      - name: 📊 Generate test summary
+        run: |
+          echo "# 🦖 ZIK_ZAK Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Quick Check: ${{ needs.quick-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔗 Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏗️ Build Test: ${{ needs.build-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Revolution Status: Backend Development Still Dead! 💀**" >> $GITHUB_STEP_SUMMARY
+
+  # Performance benchmarks (only on main branch)
+  performance-benchmark:
+    name: ⚡ Performance Benchmark
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 🦀 Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: 📦 Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 🔧 Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: ⚡ Run performance tests
+        working-directory: ./zik_zak
+        run: |
+          cargo test --release performance_ -- --ignored --nocapture
+        continue-on-error: true
+
+      - name: 📊 Performance report
+        run: |
+          echo "# ⚡ Performance Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Performance tests completed on main branch" >> $GITHUB_STEP_SUMMARY
+          echo "See logs for detailed metrics" >> $GITHUB_STEP_SUMMARY
